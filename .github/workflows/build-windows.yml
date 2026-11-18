@@ -1,0 +1,46 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Construire l'exécutable
+        run: pyinstaller --noconfirm reseauscope.spec
+
+      - name: Vérifier la sortie
+        run: |
+          dir dist
+          if (-not (Test-Path dist\ReseauScope.exe)) { exit 1 }
+
+      - name: Publier l'artefact de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReseauScope-windows
+          path: dist/ReseauScope.exe
+          if-no-files-found: error
+
+      - name: Joindre à la release (sur tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ReseauScope.exe
